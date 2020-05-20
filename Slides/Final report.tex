@@ -1,0 +1,299 @@
+\documentclass[10 pt]{beamer}
+\usepackage{color,fancybox,bm}
+\usepackage{color}
+\usepackage{booktabs}
+\usepackage{threeparttable}
+\usepackage{dashrule}
+\usepackage{float}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{fixltx2e}
+\usepackage{amssymb}
+\usepackage{rotating}
+\usepackage{url}
+\usepackage{epsfig}
+\newtheorem{acknowledgement}[theorem]{Acknowledgement}
+\newtheorem{algorithm}[theorem]{Algorithm}
+\newtheorem{assumption}{Assumption}
+\newtheorem{assumption1}{Assumption 1}
+\newtheorem{assumptions}{Assumptions}
+\newtheorem{axiom}[theorem]{Axiom}
+\newtheorem{case}[theorem]{Case}
+\newtheorem{thm1}[theorem]{Theorem 1}
+\newtheorem{thm2}[theorem]{Theorem 2}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{conclusion}[theorem]{Conclusion}
+\newtheorem{condition}[theorem]{Condition}
+\newtheorem{conjecture}[theorem]{Conjecture}
+\newtheorem{criterion}[theorem]{Criterion}
+\newtheorem{exercise}[theorem]{Exercise}
+\newtheorem{notation}[theorem]{Notation}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{remark}[theorem]{Remark}
+\newtheorem{summary}[theorem]{Summary}
+\newcommand{\nc}{\newcommand}
+\nc{\tr}{\text{tr}}
+
+\useoutertheme{infolines}
+\setbeamercolor*{palette
+primary}{use=structure,fg=structure.fg,bg=structure.fg!40!white}
+\setbeamercolor*{palette
+secondary}{use=structure,fg=white,bg=structure.fg!60!white}
+\setbeamercolor*{palette
+tertiary}{use=structure,fg=white,bg=structure.fg!90!white}
+\setbeamercolor*{palette quaternary}{fg=white,bg=black}
+
+\setbeamercolor*{sidebar}{use=structure,bg=structure.fg}
+
+\setbeamercolor*{palette sidebar
+primary}{use=structure,fg=structure.fg!10} \setbeamercolor*{palette
+sidebar secondary}{fg=white} \setbeamercolor*{palette sidebar
+tertiary}{use=structure,fg=structure.fg!50} \setbeamercolor*{palette
+sidebar quaternary}{fg=white}
+
+\setbeamercolor*{titlelike}{use=structure,fg=structure.fg,bg=structure.fg!20!white}
+
+\setbeamercolor*{separation line}{} \setbeamercolor*{fine separation
+line}{}
+
+\setbeamercolor*{block title example}{fg=black}
+
+\usefonttheme[onlysmall]{structurebold}
+
+\newcommand{\ft}{\frametitle}
+\newcommand{\bb}{\begin{block}}
+\newcommand{\eb}{\end{block}}
+\newcommand{\bi}{\begin{itemize}}
+\newcommand{\ei}{\end{itemize}}
+\newcommand{\be}{\begin{enumerate}}
+\newcommand{\ee}{\end{enumerate}}
+\newcommand{\bab}{\begin{alertblock}}
+\newcommand{\eab}{\end{alertblock}}
+\newcommand{\beb}{\begin{exampleblock}}
+\newcommand{\eeb}{\end{exampleblock}}
+\newcommand{\bc}{\begin{columns}}
+\newcommand{\ec}{\end{columns}}
+\newcommand{\ii}{\item}
+\newcommand{\convas}{\stackrel{a.s.}{\rightarrow}}
+\newcommand{\convp}{\stackrel{p}{\rightarrow}}
+\newcommand{\convd}{\stackrel{d}{\rightarrow}}
+\newcommand{\ba}{\begin{array}}
+\newcommand{\ea}{\end{array}}
+
+\def\beqr{\begin{eqnarray}}
+\def\eeqr{\end{eqnarray}}
+\def\beqrs{\begin{eqnarray*}}
+	\def\eeqrs{\end{eqnarray*}}
+
+\title[]{Movie Collaborative Filtering System Based on Low-rank Matrix Factorization.}
+
+\author[Zhengtian Zhu]{Zhengtian Zhu \\[2mm]}
+\institute[ISBD]{Institute of Statistics \& Big Data \\ Renmin University of China
+	
+}
+
+\date{}
+
+\begin{document}
+
+\begin{frame}
+	\titlepage
+\end{frame}
+
+\begin{frame}{Introduction}
+\bi
+	\item When you buy a product online, most websites automatically recommend other products that you may like. \textbf{Recommender systems} look at patterns of activities between different users and different products to produce these recommendations.
+	\item \textbf{Collaborative filtering systems}, one of the recommendation systems, are used to predict future ratings of items by users based on their past ratings. 
+	\item We implement and compare two kinds of recommender systems, item-based collaborative filtering (IBCF) system and user-based collaborative filtering (UBCF) system.
+\ei 
+\end{frame}
+
+\begin{frame}{MovieLens Data}
+
+MovieLens data sets were collected by the GroupLens Research Project at the University of Minnesota. This data set consists of:
+\bi
+	\item $100,000$ ratings from $943$ users on $1682$ movies.
+	\item Each user has rated at least $20$ movies.
+	\item Simple demographic info for the users (age, gender, occupation, zip)
+\ei
+
+The data was collected through the MovieLens web site (movielens.umn.edu) during the seven-month period from September 19th, 1997 through April 22nd, 1998. This data has been cleaned up - users who had less than 20 ratings or did not have complete demographic information were removed from this data set.
+
+\ 
+
+The data can be downloaded at 
+
+\url{https://grouplens.org/datasets/movielens/}
+\end{frame}
+
+\begin{frame}{EDA}
+
+The data includes $100004$ ratings, each rating has $7$ features:
+\bi
+	\item The 1st feature is movieID which ranges from $1$ to $1682$. 
+	\item The 2nd feature is the title of movie. Notice that the title may not be unique. 
+	\item The 3rd feature is the time of first roadshow of a movie. 
+	\item The 4th feature identifies the genre(s) of a movie. Notice that some genres may have overlapping. This kind of classification is not very explicit in this dataset. 
+	\item The 5th feature is the userID which ranges from $1$ to $943$. The data is arranges by the order of userID originally. 
+	\item The 6th feature is the rating which ranges from $0.5$ to $5$ and has interval $0.5$. 
+	\item The last feature is the timestamp of a user rating a movie.
+
+\ei
+\end{frame}
+
+\begin{frame}{EDA}
+
+\begin{figure}[htbp]
+	\begin{tabular}{c}
+		\psfig{figure=rating.png,width=2.5in,height=2in,angle=0} \\
+	\end{tabular}
+\end{figure}
+
+We then plot the histogram of the ratings. From the plot, we can see most films have rating $3$ and $4$. Low ratings films $(1\--2)$ are less than high rating films $(3\--5)$. The distribution of the rating seems normal and reasonable.
+
+\end{frame}
+
+
+\begin{frame}{Sparsity Level}
+\bi
+	\item The data set is converted into a user-item matrix $A$ that had $943$ rows (i.e., $943$ users) and $1682$ columns (i.e., $1682$ movies that were rated by at least one of the users).
+
+	\item For our project, we take sparsity level of data sets into consideration. For a data matrix $R$ This is defined as $1-\frac{\text{nonzero entries}}{\text{total entries}}$. The sparsity level of the Movie data set is, therefore,$1-\frac{100,000}{943\times 1682}$ , which is $0.9369$.
+	
+	\item We decide to use collaborative filtering based system because of high sparsity level. We consider two kinds of system, item-based system and user-based system.
+\ei
+\end{frame}
+
+\begin{frame}{EDA}
+	
+	\begin{figure}[htbp]
+		\begin{tabular}{c}
+			\psfig{figure=eigen.png,width=4in,height=2in,angle=0} \\
+		\end{tabular}
+	\end{figure}
+	We check the correlation matrix of film by using all the data. From the plot, we know that the matrix has many $0$ eigenvalues. The data is highly sparsed.
+\end{frame}
+
+\begin{frame}{Overview of the Collaborative Filtering Process}
+\bi
+	\item The goal of a collaborative filtering algorithm is to suggest new items or to predict the utility of a certain item for a particular user based on the user's previous likings and the opinions of other like-minded users.
+	\item In a typical CF scenario, there is a list of $m$ users $U=\{u_1,u_2,\ldots,u_m\}$ and a
+	list of $n$ items $I=\{i_1,i_2,\ldots,i_n\}$ Each user $u_i$ has a list of items $I_{ui}$ , which the user has expressed his/her opinions about. Opinions can be explicitly given by the user as a rating score.
+	\item Recommendation is a list of $N$ items, $I_r\subset I$, that the active user will like the most. Note that the recommended list must be on items not already purchased by the active user, i.e.,This interface of CF algorithms is also known as \textbf{Top-N} recommendation.
+\ei	
+\end{frame}
+
+\begin{frame}{User-Based Collaborative Filtering System}
+
+User-based collaborative filtering system utilize the entire user-item database to generate a prediction. These systems employ statistical techniques to find a set of users, known as \textbf{neighbors}, that have a history of agreeing with the target user
+(i.e., they either rate different items similarly or they tend to buy similar set of items). Once a neighborhood of users is formed, these systems use different algorithms to combine the preferences of neighbors to produce a prediction or top-N recommendation for the active user. The techniques,
+also known as nearest-neighbor or \textbf{memory-based} collaborative filtering, are more popular and widely used in practice.
+\end{frame}
+
+\begin{frame}{An Example of User-User Similarity Matrix}
+
+Here is a table of user's rating of item.	
+\begin{table}
+	\begin{tabular}{c|c|c|c|c|c|c|c}
+		User or Item & A & B & C & D & E & F & G \\
+		\hline
+		1 & 4 & - & - & -& 3 & 2 & 4  \\
+		\hline
+		2 & 3 & 3 & 2 & 1 & 2 & - & - \\
+		\hline
+		3 & - & 5 & 4 & 3 & 4 & 5 & 3 
+	\end{tabular}
+\end{table}
+
+The user-user similarity matrix is 
+\beqrs
+\begin{pmatrix}
+	1&1&-1 \\
+	1&1&1 \\
+	-1&1&1
+\end{pmatrix}
+\eeqrs
+
+\end{frame}
+
+\begin{frame}{Item-Based Collaborative Filtering System}
+Item-based collaborative filtering algorithms provide item recommendation by first developing a model of user ratings. Algorithms in this category take a probabilistic approach and envision the collaborative filtering process as computing the expected value of a user prediction, given his/her ratings on other items. The techniques are also known as or \textbf{model-based} collaborative filtering.
+
+\begin{figure}[htbp]
+	\begin{tabular}{c}
+		\psfig{figure=similarity.png,width=3in,height=1.5in,angle=0} \\
+	\end{tabular}
+\end{figure}
+
+\end{frame}
+
+\begin{frame}{Training the Model}
+We split the data into training set and test set. $80\%$ of the data are training set, while $20\%$ are test set. After spliting the data, we mainly train four models:
+\bi
+	\item Item-based collaborative filtering system using cosine-based similarity;
+	\item Item-based collaborative filtering system using correlation-based similarity;
+	\item User-based collaborative filtering system using cosine-based similarity;
+	\item User-based collaborative filtering system using correlation-based similarity.
+\ei
+The cosine-based similarity is
+\beqrs
+sim(i,j)=\cos(i,j)=\frac{i\cdot j}{\|i\|_2*\|j\|_2}.
+\eeqrs
+
+The correlation-based similarity is
+\beqrs
+sim(i,j)=\frac{\sum_{u\in U}(R_{u,i}-\bar{R}_i)(R_{u,j}-\bar{R}_j)}{\sqrt{\sum_{u\in U}(R_{u,i}-\bar{R}_i)^2}\sqrt{\sum_{u\in U}(R_{u,j}-\bar{R}_j)^2}}.
+\eeqrs
+\end{frame}
+
+\begin{frame}{Result}
+	\begin{figure}[htbp]
+		\begin{tabular}{c}
+			\psfig{figure=result.png,width=1.5in,height=1.5in,angle=0} \\
+		\end{tabular}
+	\end{figure}
+Here is the recommendation result of the first user. He or she might be more interested in action movie and science fiction movie.
+\end{frame}
+
+\begin{frame}{ROC curve}
+	\begin{figure}[htbp]
+		\begin{tabular}{c}
+			\psfig{figure=ROC.png,width=3in,height=1.5in,angle=0} \\
+		\end{tabular}
+	\end{figure}
+We then plot the ROC curve of the four models. We can see the user-based collaborative filtering system using correlation-based similarity performs best. All models have a better performance than random recommendation.
+\end{frame}
+
+\begin{frame}{Eigenvalue}
+\begin{figure}[htbp]
+	\begin{tabular}{c}
+		\psfig{figure=neweigen.png,width=4in,height=2in,angle=0} \\
+	\end{tabular}
+\end{figure}
+We check the adjusted user-user similarity matrix. We can see that all the eigenvalues are nonnegative.
+\end{frame}
+
+
+\begin{frame}{Conclusion}
+\bi
+	\item When using the same similarity function, user-based system performs better than item-based system.
+	\item When using the same system, correlation-based similarity function performs better than cosine-based similarity function.
+	\item The precision of the system is relatively low. None of the implemented system is truly outperformed. 
+	\item For larger and more complicated dataset, how to implement fast and precise recommendation system is a challenage.
+\ei
+\end{frame}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+\end{document}
