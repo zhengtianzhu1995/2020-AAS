@@ -1,0 +1,244 @@
+---
+title: "Proposal"
+author: "Zhu Zhengtian"
+date: "04.08.20"
+output: pdf_document
+---
+
+# Abstract
+The correlation matrix is a fundamental statistic that used in many fields. It is used as a basic element of recommendation systems, which provide information of interest to users by referring to databases. For example, GroupLens, a collaborative filtering system, uses the correlation between users for predictive purposes. However, the estimated correlation matrix sometimes has a serious defect: although the correaltion matrix is originally positive semidefinite, the estimated one may not be positive semidefinite when not all ratings are observed. To obtain a positive semidefinite correlation matrix, the nearest correlation matrix problem has been recently studied in the fields of numerical analysis and optimization. Since the optimization problem has a prescribed rank and bound constraints on the correlations, it can be converted into a orthogonal constrained optimization problem. In this project, we use a first-order feasible method to estimate the correlation matrix.
+
+# Introduction
+
+## GroupLens Data
+MovieLens data sets were collected by the GroupLens Research Project at the University of Minnesota. This data set consists of:
+```
+*100,000 ratings (1-5) from 943 users on 1682 movies.
+*Each user has rated at least 20 movies.
+*Simple demographic info for the users (age, gender, occupation, zip)
+```
+The data was collected through the MovieLens web site (movielens.umn.edu) during the seven-month period from September 19th, 1997 through April 22nd, 1998. This data has been cleaned up - users who had less than 20 ratings or did not have complete demographic information were removed from this data set. 
+
+The data can be downloaded at https://grouplens.org/datasets/movielens/. 
+```{r}
+library(dslabs)
+data(movielens)
+dim(movielens)
+head(movielens)
+```
+The data includes $100004$ ratings, each rating has $7$ features. The $1$st column is movieID which ranges from $1$ to $1682$. The $2$nd column is the title of movie. Notice that the title may not be unique. The $3$rd column is the time of first roadshow of a movie. The $4$th column identifies the genre(s) of a movie. Notice that some genres may have overlapping. This kind of classification is not very explicit in this dataset. The $5$th column is the userID which ranges from $1$ to $943$. The data is arranges by the order of userID originally. The $6$th column is the rating which ranges from $0.5$ to $5$ and has interval $0.5$. The last column is the timestamp of a user rating a movie. 
+
+## Algorithm Used in GroupLens
+Most collaborative filtering algorithms can be categorized into two groups: one composed of model-based algorithms, and the other of memory-based algorithms. We consider an algorithm of the second category.
+
+The algorithm used in GroupLens is explained in the following. Let $R_{ia}$ be the rating of item $a$ by user $i$ and $U_{ij}$ be the set of items rated by both user $i$ and user $j$. The correlation coefficient between user $i$ and user $j$ is estimated by
+$$
+\widehat{\rho}_{ij}=\frac{\sum_{a\in U_{ij}}(R_{ia}-\bar{R}_i(U_{ij}))(R_{ja}-\bar{R}_j(U_{ij}))}{\sqrt{\sum_{a\in U_{ij}}(R_{ia}-\bar{R}_i(U_{ij}))^2}\sqrt{\sum_{a\in U_{ij}}(R_{ja}-\bar{R}_j(U_{ij}))^2}}.
+$$
+Here, $\bar{R}_i(U_{ij})=\sum_{a\in U_{ij}}R_{ia}/n_{ij}$ is the mean of $R_{ia}$ in $U_{ij}$, and $n_{ij}$ is the number of elements in $U_{ij}$. 
+
+Let us give an example to show the estimation of correlation matrix. 
+```{r}
+Edata <- matrix(data = c(4,3,0,0,3,5,0,2,4,0,1,3,3,2,4,2,0,5,4,0,3),byrow = TRUE, nrow = 7, ncol = 3)
+Edata
+```
+The row stands for items and the column stands for users. The number in the $i$-th row and $j$-th column is the rating of item $i$ rated by user $j$. $0$ means the rating is unobserved. The correlation matrix $\widehat{\rho}$ obtained from the data is 
+```{r}
+hrho <- matrix(0, nrow = 3, ncol = 3)
+for (i in 1:3) {
+  for (j in 1:3){
+    find = which(Edata[,i] > 0 & Edata[,j] > 0)
+    if (length(find) == 0 | length(find) == 1){
+      hrho[i,j] = 0
+    }
+    else
+    {hrho[i,j] = cor(Edata[find,i],Edata[find,j]) }
+  }
+}
+hrho
+```
+Let $T_a$ be the set of users who rated item $a$ and $T'_i$ be the set of items rated by user $i$. The point prediction for the rating of item $a$ by user $i$ is given by
+$$
+\widehat{R}_{ia}=\bar{R}_i+\frac{\sum_{j\in T_a}\widehat{\rho}_{ij}(R_{ja}-\bar{R}_j)}{\sum_{j\in T_a}|\widehat{\rho}_{ij}|}.
+$$
+where $\bar{R}_i$ is the mean of $R_{ia}$ in $T'_i$.
+
+# EDA
+## Movie Data
+```{r}
+library(tidyverse)
+```
+At first, we load required packages. Most of the packages that were used come from the tidyverse - a collection of packages that share common philosophies of tidy data.
+
+```{r}
+na_movielens <- movielens %>%
+  filter(is.na(title) | is.na(year))
+glimpse(na_movielens)
+```
+We have a glimpse of the missing data. We can see some movies do not have debut year or title.
+
+```{r}
+summary(movielens)
+```
+We then give a summary of our original data.
+
+```{r}
+movie_per_year <- movielens %>%
+  na.omit() %>% 
+  select(movieId, year) %>% 
+  group_by(year) %>% 
+  summarise(count = n()) %>% 
+  arrange(year)
+
+print(movie_per_year)
+
+movie_per_year %>%
+  ggplot(aes(x = year, y = count)) +
+  geom_line(color="blue")
+```
+We can see an exponential growth of the movie business and a sudden drop in 1998. The latter is caused by the fact that the data is collected until April 1998. The dataset keeps updated, but the later data are not complete.
+
+```{r}
+genres <- movielens %>%
+  separate_rows(genres, sep = "\\|") %>%
+  group_by(genres) %>%
+  summarise(number = n()) %>%
+  arrange(desc(number))
+
+print(genres)
+```
+We have a look at the genres.
+
+```{r}
+genres_popularity <- movielens %>%
+  na.omit() %>% 
+  select(movieId, year, genres) %>% 
+  separate_rows(genres, sep = "\\|") %>% 
+  mutate(genres = as.factor(genres)) %>% 
+  group_by(year, genres) %>% 
+  summarise(number = n()) %>% 
+  complete(year = full_seq(year, 1), genres, fill = list(number = 0)) 
+
+genres_popularity %>%
+  filter(year > 1930) %>%
+  filter(genres %in% c("War", "Sci-Fi", "Animation", "Western")) %>%
+  ggplot(aes(x = year, y = number)) +
+  geom_line(aes(color=genres)) + 
+  scale_fill_brewer(palette = "Paired") 
+```
+Here we have some interesting observations. First we can notice a rapid growth of sci-fi movies shortly after 1969, the year of the first Moon landing. Secondly, we notice high number of westerns in 1950s and 1960s that was the time when westerns popularity was peaking. Next, we can see the rise of popularity of animated movies, the most probable reason might be the computer animation technology advancement which made the production much easier. War movies were popular around the time when big military conflicts occured - World War II, Vietnam War and most recently War in Afghanistan and Iraq. It’s interesting to see how the world of movie reflected the state of the real world.
+
+## Correlation Matrix
+```{r, eval= FALSE}
+movielens[,-which(names(movielens)%in%c("title","year","genres","timestamp"))]
+rating <- subset(movielens,select=-c(title,year,genres,timestamp))
+```
+To construct the correlation matrix, we only consider about movieID, userID and rating.
+```{r, eval= FALSE}
+omatrix <- matrix(0, nrow = 1682, ncol = 943)
+for (i in 1:1682){
+  for (j in 1:943){
+    find = which(rating[,1] == i & rating[,2] == j)
+    if (length(find) == 0){
+      omatrix[i,j] = 0
+    }
+    else
+    omatrix[i,j] = rating[find,3]
+  }
+}
+```
+We rearrange the data as matrix whose row is movieID and column is userID. The element in $i$-th row and $j$-th column is the rating of movie$i$ by user$j$. $0$ means the rating is unobserved. The code above runs slowly, we read from the file which is saved earlier.
+```{r}
+omatrix <- read.csv("omatrix.csv", header = FALSE)
+dim(omatrix)
+```
+According to the algorithm by GroupLens, we have the following $943\times 943$ correlation matrix:
+```{r,eval= FALSE}
+a <- matrix(0, nrow = 943, ncol = 943)
+for (i in 1:943) {
+  for (j in 1:943){
+    find = which(omatrix[,i] > 0 & omatrix[,j] > 0)
+    if (length(find) == 0 | length(find) == 1){
+      a[i,j] = 0
+    }
+    else
+    {a[i,j] = cor(omatrix[find,i],omatrix[find,j]) }
+  }
+}
+a[is.na(a)] = 0 
+```
+The Pearson correlation efficient is not defined when the variable has $0$ variance. The coefficient is set to $0$ in this situation.
+
+```{r}
+a <- read.table("a.txt")
+```
+We also read the file directly for saving time.
+
+```{r}
+lam <- eigen(a)$values
+hist(lam)
+```
+We check the histogram of the 943 eigenvalues of $\hat{\rho}$. There are a lot of negative
+eigenvalues; hence, $\hat{\rho}$ is highly indefinite. The positive semidefiniteness
+of the correlation matrix is not required in the above algorithm, but the
+correlation matrices are originally positive semidefinite. Thus, the existence
+of large negative eigenvalues suggests that $\hat{\rho}$ has a lot of noise.
+
+# Model
+Our goal is to find a low-rank positive semidefinite matrix of a given symmetric matrix. A low-rank matrix optimization problem is to be solved. This kind of problem belongs to semidefinite programming (SDP) which is a useful tool for modeling many applications.
+
+Let $S^n$ and $S_+^n$ be the space of $n\times n$ symmetric matrices and the cone of positive semidefinite matrices in $S^n$, respectively. Denote the Frobenius norm induced by the standard trace inner product $<\cdot,\cdot>$ in $S^n$ by $\|\cdot\|$. Let $C$ be a given matrix in $S^n$ and $H\in S^n$ a given weight matrix whose entries are nonnegative. Then the rank constrained nearest correlation matrix problem (rank-NCM) can be formulated as follows:
+$$
+\begin{aligned}
+&\min\quad\frac{1}{2}\|H\circ(X-C)\|^2 \\
+\textbf{s.t.}\quad&X_{ii}=1,\quad i =1,\ldots,n,\\
+&X\in S_+^n,\\
+&rank(X)\leq r,
+\end{aligned}
+$$
+where "$\circ$" denotes the Hadamard product, i.e., $(A\circ B)_{ij}=A_{ij}B_{ij},$, $i,j=1,\ldots,n$ and $r\in\{1,\ldots,n\}$ is a given integer. The weight matrix $H$ is introduced by adding larger weights to correlations that are better estimated or are of higher confidence in their correctness. Zero weights are usually assigned to those correlations that are missing or not estimated.
+
+The weight matrix $H$ is either the identity or the one provided by T.Fushiki at Institute of Statistical Mathematics, Japan. 
+
+According to T.Fushiki, if $\{(X_1,Y_1),\ldots,(X_N,Y_N)\}$ is assumed to be independent and identically distributed (i.i.d.), an asymptotic variance of the correlation coefficient between $X$ and $Y$ is obtained with the delta method, which uses estimates of higher-order moments. If $\{(X_1,Y_1),\ldots,(X_N,Y_N)\}$ is, moreover, assumed to have a gaussian distribution, an asymptotic variance of $\widehat{\rho}_{X,Y}$ is obtained as $(1-\widehat{\rho}_{X,Y}^2)^2/N$ by using simply $\widehat{\rho}_{X,Y}$. Let $\widehat{V}_{ij}$ be an estimate of the variance of $\widehat{\rho}_{ij}$ and $\widehat{H}$ be the elementwise inverse of $\widehat{V}$:
+$$
+\widehat{H}_{ij}= \left\{
+\begin{aligned}
+&1/\widehat{V}_{ij}&\mathbf{if}\ \widehat{V}_{ij}\neq 0 \\
+&0&\mathbf{otherwise}.
+\end{aligned}
+\right.
+$$
+
+If $\widehat{H}$ is used, the relaxed problem can be written as 
+$$
+\begin{aligned}
+&\min\quad\frac{1}{2}\textbf{tr}[(X-\widehat{\rho})\{\widehat{H}\circ(X-\widehat{\rho})\}] \\
+&\textbf{s.t.}\quad diag(X)=\mathbf{1},\quad X\succeq 0.
+\end{aligned}
+$$
+
+We express the rank constraints $rank(X)\leq r$ explicitly as $X=V^TV$ with $V=[V_1,\ldots,V_n]\in \mathbb R^{r\times n}$. Hence the original optimization problem is reduced to the minimization of a quadratic polynomial over spheres as follows:
+$$
+\min_{V\in \mathbb R^{r\times n}}\quad\frac{1}{2}\|\widehat{H}\circ(V^TV-C)\|^2,\quad \textbf{s.t.}\quad\|V_i\|_2=1,i=1,\ldots,n.
+$$
+
+
+# Future Plan
+On one hand, we can cast the original problem into QSDP (quadratic semidefinite programming) form by dropping the constant term:
+$$
+\begin{aligned}
+&\min\quad \frac{1}{2}\textbf{tr}[X(\widehat{H}\circ X)]-\textbf{tr}[X(\widehat{H}\circ\widehat{\rho})] \\
+&\textbf{s.t.}\quad diag(X)=\mathbf{1}.\quad X\succeq 0.
+\end{aligned}
+$$
+The loss function and the gradient are easy to compute. We can implement feasible manifold optimization algorithm to achieve $V$ or $X$. 
+
+On the other hand, the dual problem is written as
+$$
+\begin{aligned}
+&\max\quad -\frac{1}{2}\textbf{tr}[X(\widehat{H}\circ X)]+\mathbf{1}^T\mathbf{y} \\
+&\textbf{s.t.}\quad Diag(\mathbf{y})-\widehat{H}\circ X+S=-\widehat{H}\circ\widehat{\rho},\quad S\succeq 0,
+\end{aligned}
+$$
+where $Diag:\mathbb{R}^n\rightarrow S^n$ is a linear map that makes a diagonal matrix with the given diagonal elements. We can implement parallelizable manifold optimization algorithm to achieve $V$ or $X$. We then compare the accuracy and efficiency between two approaches.
